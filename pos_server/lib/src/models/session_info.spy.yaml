@@ -1,0 +1,4 @@
+class: SessionInfo
+fields:
+  timeSlots: List<TimeSlot>
+  isSessionEnabled: bool

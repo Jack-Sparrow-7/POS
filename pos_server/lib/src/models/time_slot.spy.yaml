@@ -1,0 +1,6 @@
+class: TimeSlot
+fields:
+  day: Day
+  enabled: bool
+  startTime: String
+  endTime: String

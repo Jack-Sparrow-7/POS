@@ -1,0 +1,16 @@
+class: Customer
+table: customer
+
+fields:
+    authUserId: UuidValue
+    email: String
+    createdAt: DateTime
+    updatedAt: DateTime
+
+indexes:
+    customer_auth_user_idx:
+        fields: authUserId
+        unique: true
+    customer_email_idx:
+        fields: email
+        unique: true

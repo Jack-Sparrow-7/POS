@@ -1,0 +1,28 @@
+class: StockLog
+table: stock_log
+fields:
+    storeId: int, relation(parent=store)
+    productId: int, relation(parent=product)
+
+    movementType: StockMovementType
+    quantity: int
+
+    referenceType: StockReferenceType
+    orderId: int?
+    remarks: String?
+
+    stockBefore: int
+    stockAfter: int
+    movementAt: DateTime
+
+    createdAt: DateTime?, scope=serverOnly
+
+indexes:
+    stocklog_store_product_date_idx:
+      fields: storeId, productId, movementAt
+
+    stocklog_product_date_idx:
+      fields: productId, movementAt
+
+    stocklog_reference_idx:
+      fields: referenceType, orderId

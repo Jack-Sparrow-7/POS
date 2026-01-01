@@ -1,0 +1,31 @@
+class: Product
+table: product
+fields:
+    # Client
+    name: String
+    basePrice: int
+    sellingPrice: int
+    imageUrl: String?
+    categoryId: int, relation(parent=category)
+    counterId: int, relation(parent=counter)
+    storeId: int, relation(parent=store)
+    merchantId: UuidValue
+    stockMonitor: bool
+    stockQuantity: int
+    lowStockQuantity: int
+    status: ProductStatus
+    sessionInfo: SessionInfo?
+    # Server
+    createdAt: DateTime?, scope = serverOnly
+    updatedAt: DateTime?, scope = serverOnly
+    
+indexes:
+    product_name_store_idx:
+        fields: name, storeId
+        unique: true
+
+    product_store_status_idx:
+        fields: storeId, status
+
+    product_category_store_idx:
+        fields: categoryId, storeId

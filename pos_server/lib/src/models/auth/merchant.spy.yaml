@@ -1,0 +1,20 @@
+class: Merchant
+table: merchant
+fields:
+    # client
+    name: String
+    businessName: String
+    whatsappNumber: String
+    email: String
+    # server
+    authUserId: UuidValue
+    createdAt: DateTime
+    updatedAt: DateTime
+
+indexes:
+    merchant_auth_user_idx:
+        fields: authUserId
+        unique: true
+    merchant_email_idx:
+        fields: email
+        unique: true

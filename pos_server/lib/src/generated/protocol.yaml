@@ -1,0 +1,73 @@
+emailAuth:
+  - registerCustomer:
+  - registerMerchant:
+  - getAllUsers:
+  - deleteCustomerById:
+emailIdp:
+  - login:
+  - startRegistration:
+  - verifyRegistrationCode:
+  - finishRegistration:
+  - startPasswordReset:
+  - verifyPasswordResetCode:
+  - finishPasswordReset:
+jwtRefresh:
+  - refreshAccessToken:
+category:
+  - createCategory:
+  - updateCategory:
+  - getCategory:
+  - getAllCategories:
+  - getAllCategoriesDev:
+  - deleteCategory:
+counter:
+  - createCounter:
+  - updateCounter:
+  - deleteCounter:
+  - getAllCountersDev:
+  - getAllCounters:
+customer:
+  - createCustomer:
+  - getAllCustomers:
+  - getCustomerByUserId:
+  - getCustomerById:
+  - deleteCustomerByUserId:
+  - deleteCustomerById:
+merchant:
+  - createMerchant:
+  - getAllMerchants:
+  - getMerchantByUserId:
+  - getMerchantById:
+  - deleteMerchantByUuid:
+  - deleteMerchantById:
+product:
+  - createProduct:
+  - getAllProducts:
+  - updateProduct:
+  - updateStatus:
+  - updateSession:
+  - deleteProduct:
+  - resetStock:
+  - addStock:
+  - reduceStockSale:
+  - reduceStockAdjustment:
+  - reduceStockWastage:
+stock:
+  - createStockLog:
+  - getAllStockLogs:
+  - getAllStockLogsDev:
+  - getStockSummary:
+store:
+  - createStore:
+  - getAllStores:
+  - getAllStoresDev:
+  - getStore:
+  - updateStore:
+  - deleteStore:
+terminal:
+  - createTerminal:
+  - updateTerminal:
+  - getTerminal:
+  - getAllTerminalsDev:
+  - getAllTerminals:
+  - deleteTerminal:

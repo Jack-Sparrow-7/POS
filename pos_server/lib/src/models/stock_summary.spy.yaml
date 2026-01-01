@@ -1,0 +1,10 @@
+class: StockSummary
+fields:
+    productId: int
+    productName: String
+    openingStock: int
+    stockIn: int
+    stockOut: int
+    wastage: int
+    adjustment: int
+    closingStock: int

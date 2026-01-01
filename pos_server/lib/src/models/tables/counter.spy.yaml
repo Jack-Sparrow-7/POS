@@ -1,0 +1,15 @@
+class: Counter
+table: counter
+fields:
+    # Client
+    name: String
+    merchantId: UuidValue
+    storeId: int, relation(parent=store)
+    # Server
+    createdAt: DateTime?, scope=serverOnly
+    updatedAt: DateTime?, scope=serverOnly
+
+indexes:
+    counter_name_store_idx:
+        fields: name, storeId
+        unique: true

@@ -1,0 +1,5 @@
+enum: StockReferenceType
+values:
+    - SALE
+    - MANUAL
+    - TRANSFER

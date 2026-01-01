@@ -1,0 +1,5 @@
+enum: ProductStatus
+values:
+    - ACTIVE
+    - INACTIVE
+    - SOLDOUT

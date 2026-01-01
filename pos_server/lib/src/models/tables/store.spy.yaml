@@ -1,0 +1,16 @@
+class: Store
+table: store
+fields:
+    # Client Side
+    name: String
+    email: String
+    merchantId: UuidValue
+    type: String?
+    # Server Side
+    createdAt: DateTime?, scope=serverOnly
+    updatedAt: DateTime?, scope=serverOnly
+
+indexes:
+    store_name_merchant_idx:
+        fields: name, merchantId
+        unique: true

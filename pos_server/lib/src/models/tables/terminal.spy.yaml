@@ -1,0 +1,21 @@
+class: Terminal
+table: terminal
+fields:
+    # client
+    name: String
+    email: String
+    storeId: int, relation(parent=store)
+    merchantId: UuidValue
+    password: String?, scope=serverOnly
+    # server
+    terminalNumber: String
+    createdAt: DateTime?, scope=serverOnly
+    updatedAt: DateTime?, scope=serverOnly
+
+indexes:
+  terminal_number_idx:
+    fields: terminalNumber
+    unique: true
+  terminal_name_store_idx:
+    fields: name, storeId
+    unique: true
