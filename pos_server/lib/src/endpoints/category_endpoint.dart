@@ -8,8 +8,7 @@ class CategoryEndpoint extends Endpoint {
     required int storeId,
     required UuidValue merchantId,
   }) async {
-    final trimmedName = name.trim();
-    if (trimmedName.isEmpty) {
+    if (name.trim().isEmpty) {
       throw ValidationException(message: 'Name is required.');
     }
 
@@ -17,18 +16,20 @@ class CategoryEndpoint extends Endpoint {
       throw ValidationException(message: 'Invalid storeId.');
     }
 
-    if (merchantId.uuid.isEmpty) {
+    if (merchantId.isNil) {
       throw ValidationException(message: 'Merchant ID is required.');
     }
 
-    final updatedName = trimmedName.toUpperCase();
-    final now = DateTime.now().toUtc();
+    final store = await Store.db.findById(session, storeId);
+    if (store == null || store.merchantId != merchantId) {
+      throw ValidationException(message: 'Invalid Store ID.');
+    }
+
+    final updatedName = name.trim().toUpperCase();
     final category = Category(
       name: updatedName,
       storeId: storeId,
       merchantId: merchantId,
-      createdAt: now,
-      updatedAt: now,
     );
 
     try {
@@ -49,24 +50,34 @@ class CategoryEndpoint extends Endpoint {
 
   Future<Category> updateCategory(
     Session session, {
-    required String name,
-    required int id,
+    required Category category,
   }) async {
-    final trimmedName = name.trim();
-    if (trimmedName.isEmpty) {
-      throw ValidationException(message: 'Name is required.');
+    if (category.name.trim().isEmpty) {
+      throw ValidationException(message: 'Name should not be empty.');
     }
 
-    final existing = await Category.db.findById(session, id);
-    if (existing == null) {
-      throw NotFoundException(message: 'Category does not exist.');
+    if (category.merchantId.isNil) {
+      throw ValidationException(message: 'Merchant ID is required.');
     }
-    final updatedName = trimmedName.toUpperCase();
-    existing.name = updatedName;
-    existing.updatedAt = DateTime.now().toUtc();
+
+    if (category.storeId <= 0) {
+      throw ValidationException(message: 'Invalid storeId.');
+    }
+
+    final store = await Store.db.findById(session, category.storeId);
+    if (store == null || store.merchantId != category.merchantId) {
+      throw ValidationException(message: 'Invalid Store ID.');
+    }
+
+    final normalizedCategory = category.copyWith(
+      name: category.name.trim().toUpperCase(),
+    );
 
     try {
-      final updatedCategory = await Category.db.updateRow(session, existing);
+      final updatedCategory = await Category.db.updateRow(
+        session,
+        normalizedCategory,
+      );
       return updatedCategory;
     } on DatabaseException catch (e) {
       if (e.message.contains('category_name_store_idx')) {
@@ -77,20 +88,38 @@ class CategoryEndpoint extends Endpoint {
     }
   }
 
-  Future<Category> getCategory(Session session, {required int id}) async {
-    final category = await Category.db.findById(session, id);
-
-    if (category == null) {
-      throw NotFoundException(message: 'Category does not exist.');
+  Future<Category> getCategory(
+    Session session, {
+    required int id,
+    required UuidValue merchantId,
+  }) async {
+    if (merchantId.isNil) {
+      throw ValidationException(
+        message: 'Merchant ID is required.',
+      );
     }
 
+    final category = await Category.db.findById(session, id);
+    if (category == null || category.merchantId != merchantId) {
+      throw NotFoundException(message: 'Category does not exist.');
+    }
     return category;
   }
 
   Future<List<Category>> getAllCategories(
     Session session, {
     required int storeId,
+    required UuidValue merchantId,
   }) async {
+    if (merchantId.isNil) {
+      throw ValidationException(message: 'Merchant ID is required.');
+    }
+
+    final store = await Store.db.findById(session, storeId);
+    if (store == null || store.merchantId != merchantId) {
+      throw ValidationException(message: 'Invalid Store ID.');
+    }
+
     final categories = await Category.db.find(
       session,
       where: (c) => c.storeId.equals(storeId),
@@ -102,6 +131,14 @@ class CategoryEndpoint extends Endpoint {
 
   // TODO: Restrict or remove in production (exposes all categories).
   Future<List<Category>> getAllCategoriesDev(Session session) async {
+    final isDev = pod.runMode == ServerpodRunMode.development;
+    if (!isDev) {
+      throw NotAuthorizedException(
+        reason: .insufficientAccess,
+        message: 'This method is only available in development mode.',
+      );
+    }
+
     final categories = await Category.db.find(
       session,
     );
@@ -109,18 +146,13 @@ class CategoryEndpoint extends Endpoint {
     return categories;
   }
 
-  Future<ApiResponse> deleteCategory(
+  Future<bool> deleteCategory(
     Session session, {
-    required int id,
+    required Category category,
   }) async {
-    final existing = await Category.db.findById(session, id);
-
-    if (existing == null) {
-      throw NotFoundException(message: 'Category does not exist.');
-    }
-
     try {
-      await Category.db.deleteRow(session, existing);
+      await Category.db.deleteRow(session, category);
+      return true;
     } on DatabaseException catch (e) {
       if (e.message.toLowerCase().contains('foreign key')) {
         throw ValidationException(
@@ -129,9 +161,5 @@ class CategoryEndpoint extends Endpoint {
       }
       rethrow;
     }
-    return ApiResponse(
-      success: true,
-      message: 'Category deleted successfully.',
-    );
   }
 }

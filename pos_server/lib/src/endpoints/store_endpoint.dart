@@ -2,6 +2,12 @@ import 'package:pos_server/src/generated/protocol.dart';
 import 'package:serverpod/serverpod.dart';
 
 class StoreEndpoint extends Endpoint {
+  bool _isValidEmail(String email) {
+    return RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    ).hasMatch(email);
+  }
+
   Future<Store> createStore(
     Session session, {
     required String name,
@@ -16,7 +22,7 @@ class StoreEndpoint extends Endpoint {
       );
     }
 
-    if (merchantId.uuid.isEmpty) {
+    if (merchantId.isNil) {
       throw ValidationException(
         message: 'Merchant ID is required.',
       );
@@ -29,20 +35,24 @@ class StoreEndpoint extends Endpoint {
       );
     }
 
+    if (!_isValidEmail(trimmedEmail)) {
+      throw ValidationException(
+        message: 'Email is not valid.',
+      );
+    }
+
     final updatedName = trimmedName.toUpperCase();
     String? updatedTypeName;
-    if (type != null && type.trim().isNotEmpty) updatedTypeName = type.trim().toUpperCase();
+    if (type != null && type.trim().isNotEmpty) {
+      updatedTypeName = type.trim().toUpperCase();
+    }
     final updatedEmail = trimmedEmail;
-
-    final now = DateTime.now().toUtc();
 
     final store = Store(
       name: updatedName,
       merchantId: merchantId,
       type: updatedTypeName,
       email: updatedEmail,
-      createdAt: now,
-      updatedAt: now,
     );
 
     try {
@@ -64,7 +74,7 @@ class StoreEndpoint extends Endpoint {
     Session session, {
     required UuidValue merchantId,
   }) async {
-    if (merchantId.uuid.isEmpty) {
+    if (merchantId.isNil) {
       throw ValidationException(
         message: 'Merchant ID is required.',
       );
@@ -82,6 +92,14 @@ class StoreEndpoint extends Endpoint {
   Future<List<Store>> getAllStoresDev(
     Session session,
   ) async {
+    final isDev = pod.runMode == ServerpodRunMode.development;
+    if (!isDev) {
+      throw NotAuthorizedException(
+        reason: .insufficientAccess,
+        message: 'This method is only available in development mode.',
+      );
+    }
+
     final storesList = await Store.db.find(
       session,
     );
@@ -92,59 +110,53 @@ class StoreEndpoint extends Endpoint {
   Future<Store> getStore(
     Session session, {
     required int id,
+    required UuidValue merchantId,
   }) async {
+    if (merchantId.isNil) {
+      throw ValidationException(
+        message: 'Merchant ID is required.',
+      );
+    }
+    
     final existingStore = await Store.db.findById(session, id);
-
-    if (existingStore == null) {
+    if (existingStore == null || existingStore.merchantId != merchantId) {
       throw NotFoundException(message: 'Store does not exist.');
     }
-
     return existingStore;
   }
 
   Future<Store> updateStore(
     Session session, {
-    required int id,
-    String? name,
-    String? type,
-    String? email,
+    required Store store,
   }) async {
-    final existingStore = await Store.db.findById(session, id);
-
-    if (existingStore == null) {
-      throw NotFoundException(message: 'Store does not exist.');
+    if (store.name.trim().isEmpty) {
+      throw ValidationException(message: 'Name should not be empty.');
     }
 
-    String? updatedName;
-    if (name != null) {
-      final trimmed = name.trim();
-      if (trimmed.isEmpty) {
-        throw ValidationException(message: 'Name cannot be empty.');
-      }
-      updatedName = trimmed.toUpperCase();
+    if (store.email.trim().isEmpty) {
+      throw ValidationException(message: "Email should not be empty.");
     }
 
-    String? updatedType;
-    if (type != null && type.trim().isNotEmpty) updatedType = type.trim().toUpperCase();
-
-    String? updatedEmail;
-    if (email != null) {
-      final trimmed = email.trim().toLowerCase();
-      if (trimmed.isEmpty) {
-        throw ValidationException(message: 'Email cannot be empty.');
-      }
-      updatedEmail = trimmed;
+    if (!_isValidEmail(store.email.trim().toLowerCase())) {
+      throw ValidationException(message: 'Email is not valid.');
     }
 
-    final store = existingStore.copyWith(
-      name: updatedName ?? existingStore.name,
-      type: updatedType ?? existingStore.type,
-      email: updatedEmail ?? existingStore.email,
-      updatedAt: DateTime.now().toUtc(),
+    if (store.merchantId.isNil) {
+      throw ValidationException(message: 'Merchant ID is required.');
+    }
+
+    if (store.type != null && store.type!.trim().isEmpty) {
+      throw ValidationException(message: "Type should not be empty.");
+    }
+
+    final normalizedStore = store.copyWith(
+      name: store.name.trim().toUpperCase(),
+      email: store.email.trim().toLowerCase(),
+      type: store.type?.trim().toUpperCase(),
     );
 
     try {
-      final updatedStore = await Store.db.updateRow(session, store);
+      final updatedStore = await Store.db.updateRow(session, normalizedStore);
       return updatedStore;
     } on DatabaseException catch (e) {
       if (e.message.contains('store_name_merchant_idx')) {
@@ -156,28 +168,17 @@ class StoreEndpoint extends Endpoint {
     }
   }
 
-  Future<ApiResponse> deleteStore(
-    Session session, {
-    required int id,
-  }) async {
-    final existingStore = await Store.db.findById(session, id);
-
-    if (existingStore == null) {
-      throw NotFoundException(message: 'Store does not exist.');
-    }
-
+  Future<bool> deleteStore(Session session, Store store) async {
     try {
-      await Store.db.deleteRow(session, existingStore);
-      return ApiResponse(
-        success: true,
-        message: 'Store deleted successfully.',
-      );
+      await Store.db.deleteRow(session, store);
+      return true;
     } on DatabaseException catch (e) {
       if (e.message.toLowerCase().contains('foreign key')) {
         throw ValidationException(
-          message: 'Store cannot be deleted while it has dependent records.',
+          message: 'Cannot delete store with active records.',
         );
       }
+
       rethrow;
     }
   }
