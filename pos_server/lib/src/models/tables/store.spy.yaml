@@ -6,9 +6,6 @@ fields:
     email: String
     merchantId: UuidValue
     type: String?
-    # Server Side
-    createdAt: DateTime?, scope=serverOnly
-    updatedAt: DateTime?, scope=serverOnly
 
 indexes:
     store_name_merchant_idx:

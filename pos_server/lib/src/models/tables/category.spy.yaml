@@ -5,9 +5,6 @@ fields:
     name: String
     storeId: int, relation(parent=store)
     merchantId: UuidValue
-    # Server
-    createdAt: DateTime?, scope=serverOnly
-    updatedAt: DateTime?, scope=serverOnly
 
 indexes:
     category_name_store_idx:
