@@ -13,7 +13,7 @@ class CounterEndpoint extends Endpoint {
       throw ValidationException(message: "Name is required.");
     }
 
-    if (merchantId.uuid.isEmpty) {
+    if (merchantId.isNil) {
       throw ValidationException(message: "Merchant ID is required.");
     }
 
@@ -21,15 +21,17 @@ class CounterEndpoint extends Endpoint {
       throw ValidationException(message: "Invalid storeId.");
     }
 
-    final now = DateTime.now().toUtc();
+    final store = await Store.db.findById(session, storeId);
+    if (store == null || store.merchantId != merchantId) {
+      throw ValidationException(message: 'Invalid Store ID.');
+    }
+
     final updatedName = trimmedName.toUpperCase();
 
     final counter = Counter(
       name: updatedName,
       merchantId: merchantId,
       storeId: storeId,
-      createdAt: now,
-      updatedAt: now,
     );
 
     try {
@@ -54,27 +56,33 @@ class CounterEndpoint extends Endpoint {
 
   Future<Counter> updateCounter(
     Session session, {
-    required String name,
-    required int id,
+    required Counter counter,
   }) async {
-    final trimmedName = name.trim();
-    if (trimmedName.isEmpty) {
-      throw ValidationException(message: "Name is required.");
+    if (counter.name.trim().isEmpty) {
+      throw ValidationException(message: 'Name should not be empty.');
     }
 
-    final existingCounter = await Counter.db.findById(session, id);
-    if (existingCounter == null) {
-      throw NotFoundException(message: "Counter does not exist.");
+    if (counter.merchantId.isNil) {
+      throw ValidationException(message: 'Merchant ID is required.');
     }
 
-    final updatedName = trimmedName.toUpperCase();
-    existingCounter.name = updatedName;
-    existingCounter.updatedAt = DateTime.now().toUtc();
+    if (counter.storeId <= 0) {
+      throw ValidationException(message: 'Invalid storeId.');
+    }
+
+    final store = await Store.db.findById(session, counter.storeId);
+    if (store == null || store.merchantId != counter.merchantId) {
+      throw ValidationException(message: 'Invalid Store ID.');
+    }
+
+    final normalizedCounter = counter.copyWith(
+      name: counter.name.trim().toUpperCase(),
+    );
 
     try {
       final updatedCounter = await Counter.db.updateRow(
         session,
-        existingCounter,
+        normalizedCounter,
       );
 
       return updatedCounter;
@@ -89,15 +97,17 @@ class CounterEndpoint extends Endpoint {
     }
   }
 
-  Future<ApiResponse> deleteCounter(Session session, {required int id}) async {
-    final existing = await Counter.db.findById(session, id);
-
-    if (existing == null) {
-      throw NotFoundException(message: "Counter does not exist.");
+  Future<bool> deleteCounter(
+    Session session, {
+    required Counter counter,
+  }) async {
+    if (counter.merchantId.isNil) {
+      throw ValidationException(message: 'Merchant ID is required.');
     }
 
     try {
-      await Counter.db.deleteRow(session, existing);
+      await Counter.db.deleteRow(session, counter);
+      return true;
     } on DatabaseException catch (e) {
       if (e.message.toLowerCase().contains('foreign key')) {
         throw ValidationException(
@@ -106,12 +116,18 @@ class CounterEndpoint extends Endpoint {
       }
       rethrow;
     }
-
-    return ApiResponse(success: true, message: "Counter deleted successfully.");
   }
 
   // TODO: Restrict or remove in production (exposes all counters).
   Future<List<Counter>> getAllCountersDev(Session session) async {
+    final isDev = pod.runMode == ServerpodRunMode.development;
+    if (!isDev) {
+      throw NotAuthorizedException(
+        reason: .insufficientAccess,
+        message: 'This method is only available in development mode.',
+      );
+    }
+
     final counters = await Counter.db.find(session);
 
     return counters;
@@ -120,7 +136,17 @@ class CounterEndpoint extends Endpoint {
   Future<List<Counter>> getAllCounters(
     Session session, {
     required int storeId,
+    required UuidValue merchantId,
   }) async {
+    if (merchantId.isNil) {
+      throw ValidationException(message: 'Merchant ID is required.');
+    }
+
+    final store = await Store.db.findById(session, storeId);
+    if (store == null || store.merchantId != merchantId) {
+      throw ValidationException(message: 'Invalid Store ID.');
+    }
+
     final counters = await Counter.db.find(
       session,
       where: (c) => c.storeId.equals(storeId),
@@ -128,5 +154,21 @@ class CounterEndpoint extends Endpoint {
     );
 
     return counters;
+  }
+
+  Future<Counter> getCounter(
+    Session session, {
+    required int id,
+    required UuidValue merchantId,
+  }) async {
+    if (merchantId.isNil) {
+      throw ValidationException(message: 'Merchant ID is required.');
+    }
+
+    final counter = await Counter.db.findById(session, id);
+    if (counter == null || counter.merchantId != merchantId) {
+      throw NotFoundException(message: 'Counter does not exist.');
+    }
+    return counter;
   }
 }
